@@ -40,7 +40,7 @@ use crate::pid::Pid;
 #[cfg(feature = "fs")]
 use backend::fd::AsFd;
 #[cfg(linux_raw)]
-use core::ffi::c_void;
+use core::ffi::{c_int, c_uint, c_void};
 
 #[cfg(linux_raw)]
 pub use crate::signal::Signal;
@@ -579,3 +579,22 @@ pub const SIGRTMAX: u32 = {
         linux_raw_sys::general::_NSIG - 1
     }
 };
+
+#[inline]
+#[cfg(linux_raw)]
+pub unsafe fn init_module(image: *const c_void, len: c_uint, param_values: &CStr) -> io::Errno {
+    backend::runtime::syscalls::init_module(image, len, param_values)
+}
+
+#[inline]
+#[cfg(linux_raw)]
+#[cfg(feature = "fs")]
+pub unsafe fn finit_module<Fd: AsFd>(fd: Fd, param_values: &CStr, flags: c_int) -> io::Errno {
+    backend::runtime::syscalls::finit_module(fd.as_fd(), param_values, flags)
+}
+
+#[inline]
+#[cfg(linux_raw)]
+pub unsafe fn delete_module(name: &CStr, flags: c_int) -> io::Errno {
+    backend::runtime::syscalls::delete_module(name, flags)
+}

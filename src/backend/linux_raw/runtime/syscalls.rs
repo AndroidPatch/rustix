@@ -8,11 +8,9 @@
 use crate::backend::c;
 #[cfg(target_arch = "x86")]
 use crate::backend::conv::by_mut;
-#[cfg(target_arch = "x86_64")]
-use crate::backend::conv::c_uint;
 use crate::backend::conv::{
-    by_ref, c_int, ret, ret_c_int, ret_c_int_infallible, ret_error, ret_infallible, ret_void_star,
-    size_of, zero,
+    by_ref, c_int, c_uint, ret, ret_c_int, ret_c_int_infallible, ret_error, ret_infallible,
+    ret_void_star, size_of, zero,
 };
 #[cfg(feature = "fs")]
 use crate::fd::BorrowedFd;
@@ -315,4 +313,42 @@ pub(crate) fn exit_group(code: c::c_int) -> ! {
 pub(crate) unsafe fn brk(addr: *mut c::c_void) -> io::Result<*mut c_void> {
     // This is non-`readonly`, to prevent loads from being reordered past it.
     ret_void_star(syscall!(__NR_brk, addr))
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[inline]
+pub(crate) unsafe fn init_module(
+    image: *const c::c_void,
+    len: c::c_uint,
+    param_values: &CStr,
+) -> io::Errno {
+    ret_error(syscall_readonly!(
+        __NR_init_module,
+        image,
+        c_uint(len),
+        param_values
+    ))
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(feature = "fs")]
+#[inline]
+pub(crate) unsafe fn finit_module(
+    fd: BorrowedFd<'_>,
+    param_values: &CStr,
+    flags: c::c_int,
+) -> io::Errno {
+    ret_error(syscall_readonly!(
+        __NR_finit_module,
+        fd,
+        param_values,
+        c_int(flags)
+    ))
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(feature = "fs")]
+#[inline]
+pub(crate) unsafe fn delete_module(name: &CStr, flags: c::c_int) -> io::Errno {
+    ret_error(syscall_readonly!(__NR_delete_module, name, c_int(flags)))
 }
